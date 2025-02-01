@@ -28,7 +28,9 @@ pub const Config = struct {
     onError: fn (seed: u64, test_name: []const u8, args : anytype) Error!void = defaultOnError,
 };
 
-pub fn falsifyWith(predicate: anytype, test_name: []const u8, config: Config) !void {
+pub fn falsifyWith(predicate: anytype, test_name: []const u8, config: Config) !void { 
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
     const predTypeInfo = @typeInfo(@TypeOf(predicate)).Fn;
     const start_time = std.time.milliTimestamp();
     var seed: u64 = undefined;
@@ -49,7 +51,7 @@ pub fn falsifyWith(predicate: anytype, test_name: []const u8, config: Config) !v
         }
         var args: std.meta.ArgsTuple(@TypeOf(predicate)) = undefined;
         inline for (&args, predTypeInfo.params) |*arg, param| {
-            arg.* = generate.generateField(random, param.type.?);
+            arg.* = try generate.generateField(arena.allocator(), random, param.type.?);
         }
         const result = @call(.auto, predicate, args);
         if (!result) {
